@@ -1,6 +1,7 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/function/function_base.hpp>
 #include <cstdio>
+#include <cstdlib>
 #include <ios>
 #include <iostream>
 #include <boost/algorithm/string.hpp>
@@ -123,12 +124,14 @@ bool itemsInPath(vec2<int> c, vec2<int> d) {
         for (int i = c.x+1; i < abs(c.x-d.x);i++) {
             if (chess.board[i][c.y].type != 0) return true;
         }
+    //fucking diagonals
     } else {
-        //fucking diagonals
         int dx = d.x < c.x ? -1 : 1;
-        int dy = d.x < c.x ? -1 : 1;
-        for (int i = 1; i < abs(d.x-c.x)-1;i++) {
+        int dy = d.y < c.y ? -1 : 1;
+        bool ps = (dx - c.x) == (d.y - c.y);
+        for (int i = 1; i < abs(d.x-c.x);i++) {
             if (chess.board[c.x + (i*dx)][c.y + (i*dy)].type != 0) return true;
+            //if (chess.board[c.x - (i*dx)][c.y - (i*dy)].type != 0 && !ps) return true;
         }
     }
     return false;
@@ -153,30 +156,83 @@ bool parseMoves() {
         BoardPiece* current = &chess.board[currentPos.x][currentPos.y];
         BoardPiece* target = &chess.board[targetedPos.x][targetedPos.y];
 
-        std::cout << currentPos << targetedPos << chess.turnCount << *current  << *target << std::endl;
+        std::cout << currentPos << targetedPos << chess.turnCount << *current  << *target << chess.toMove << std::endl;
         //checks if there is a piece, if it is the current turn for that piece, if the coorinates arent the same, if the coordinates are in the bounds
         if (current->type != 0 && chess.toMove == current->color && currentPos != targetedPos && currentPos.x < 8 && currentPos.x > -1 && currentPos.y < 8 && currentPos.y > -1 && targetedPos.x < 8 && targetedPos.x > -1 && targetedPos.y < 8 && targetedPos.y > -1) {
             //TODO FOR ALL TYPES: function to check if movement would place the king in check, see if king is in check, promotion with select screen
 
             switch (current->type) {
+                // KING
+                case 1: {
+                    // King can only move one square at a time so yea
+                    if (abs(targetedPos.x-currentPos.x) > 1 || abs(targetedPos.y-currentPos.y) > 1) continue;
+                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                        current->moveCount++;
+                        current->lastTurnMoved=chess.turnCount;
+                        *target = BoardPiece(0, 0);
+                        std::swap(*current, *target);
+                        break;
+                    }
+                    continue;
+                break;
+                }
+                // QUEEN
+                case 2: {
+                    int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
+                    int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
+                    if (abs(dx)+abs(dy)!=1 && abs(targetedPos.y-currentPos.y)/abs(targetedPos.x-currentPos.x)!=1) continue;
+                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                        current->moveCount++;
+                        current->lastTurnMoved=chess.turnCount;
+                        *target = BoardPiece(0, 0);
+                        std::swap(*current, *target);
+                        break;
+                    }
+                    continue;
+                break;
+                }
+                // BISHOP
+                case 3: {
+                    int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
+                    int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
+                    if (abs(targetedPos.y-currentPos.y) == 0 || abs(targetedPos.x-currentPos.x)==0) continue;
+                    if (abs(targetedPos.y-currentPos.y)/abs(targetedPos.x-currentPos.x)!=1) continue;
+                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                        current->moveCount++;
+                        current->lastTurnMoved=chess.turnCount;
+                        *target = BoardPiece(0, 0);
+                        std::swap(*current, *target);
+                        break;
+                    }
+                    continue;
+                break;
+                }
                 // KNIGHT
-                case 4:
-                    if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2) continue;
+                case 4: {
+                    if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2 || (target->color==chess.toMove && target->type!=0)) continue;
                     current->moveCount++;
                     current->lastTurnMoved=chess.turnCount;
                     *target = BoardPiece(0, 0);
                     std::swap(*current, *target);
+                    break;
+                }
+                // ROOK
+                case 5: {
+                    int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
+                    int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
+                    if (abs(dx)+abs(dy)==2) continue;
+                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                        current->moveCount++;
+                        current->lastTurnMoved=chess.turnCount;
+                        *target = BoardPiece(0, 0);
+                        std::swap(*current, *target);
+                        break;
+                    }
+                    continue;
                 break;
-                // // ROOK
-                // case 5:
-                //     if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2) continue;
-                //     current->moveCount++;
-                //     current->lastTurnMoved=chess.turnCount;
-                //     *target = BoardPiece(0, 0);
-                //     std::swap(*current, *target);
-                // break;
+                }
                 // PAWN
-                case 6:
+                case 6: {
                     //check if moving backwards
                     if ((targetedPos.x-currentPos.x>0&&chess.toMove)||(targetedPos.x-currentPos.x<0&&!chess.toMove)) continue;
                     //checks if x(y) movement is equal to one or 2 if hasnt moved
@@ -184,19 +240,18 @@ bool parseMoves() {
                     if (movement > 2||(current->moveCount!=0&&movement==2)) continue;
                     //non en passant/capture check
                     if (targetedPos.y == currentPos.y) {
-                        if (target->type == 0 && !itemsInPath(currentPos, targetedPos)) {
-                            current->moveCount++;
-                            current->lastTurnMoved=chess.turnCount;
-                            std::swap(*current, *target);
-                            break;
-                        }
+                        if (target->type != 0 || itemsInPath(currentPos, targetedPos)) continue;
+                        current->moveCount++;
+                        current->lastTurnMoved=chess.turnCount;
+                        std::swap(*current, *target);
+                        break;
                     //en passant/capture code
                     } else {
                         //moving too far left and right
                         if (abs(targetedPos.y-currentPos.y) > 1) continue; 
                         int dy = targetedPos.y-currentPos.y;
-                        //en passant checks if there is a pawn next to us, if it has only moved once, and if the current position is in the 5th or 6th row, also if it has moved in the last turn
-                        if (chess.board[currentPos.x][currentPos.y+dy].type==6 && chess.board[currentPos.x][currentPos.y+dy].moveCount==1 && (currentPos.x == 3 || currentPos.x == 4) && chess.board[currentPos.x][currentPos.y+dy].lastTurnMoved+1==chess.turnCount) {
+                        //en passant checks if there is a pawn next to us, if it has only moved once, and if the current position is in the 5th or 6th row, also if it has moved in the last turn, adn also if it is a different color
+                        if (chess.board[currentPos.x][currentPos.y+dy].type==6 && chess.board[currentPos.x][currentPos.y+dy].moveCount==1 && (currentPos.x == 3 || currentPos.x == 4) && chess.board[currentPos.x][currentPos.y+dy].lastTurnMoved+1==chess.turnCount && chess.board[currentPos.x][currentPos.y+dy].color != chess.toMove && target->type==0) {
                             std::cout << "En Passant!" << std::endl;
                             current->moveCount++;
                             current->lastTurnMoved=chess.turnCount;
@@ -204,7 +259,7 @@ bool parseMoves() {
                             std::swap(*current, *target);
                             break;
                         }
-                        if (target->type !=0) {
+                        if (target->type !=0 && target->color != chess.toMove) {
                             // takes a piece
                             std::cout << "Took Piece!" << std::endl;
                             current->moveCount++;
@@ -213,8 +268,10 @@ bool parseMoves() {
                             std::swap(*current, *target);
                             break;
                         }
+                        continue;
                     }
                 break;
+                }
             }
             break;
         } else continue;
