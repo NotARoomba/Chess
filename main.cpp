@@ -152,9 +152,30 @@ bool parseMoves() {
         vec2<int> targetedPos = {abs(atoi(&move.at(4))-8), int(move.at(3))-65 };
         BoardPiece* current = &chess.board[currentPos.x][currentPos.y];
         BoardPiece* target = &chess.board[targetedPos.x][targetedPos.y];
+
+        std::cout << currentPos << targetedPos << chess.turnCount << *current  << *target << std::endl;
         //checks if there is a piece, if it is the current turn for that piece, if the coorinates arent the same, if the coordinates are in the bounds
         if (current->type != 0 && chess.toMove == current->color && currentPos != targetedPos && currentPos.x < 8 && currentPos.x > -1 && currentPos.y < 8 && currentPos.y > -1 && targetedPos.x < 8 && targetedPos.x > -1 && targetedPos.y < 8 && targetedPos.y > -1) {
-            switch (current->type)
+            //TODO FOR ALL TYPES: function to check if movement would place the king in check, see if king is in check, promotion with select screen
+
+            switch (current->type) {
+                // KNIGHT
+                case 4:
+                    if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2) continue;
+                    current->moveCount++;
+                    current->lastTurnMoved=chess.turnCount;
+                    *target = BoardPiece(0, 0);
+                    std::swap(*current, *target);
+                break;
+                // // ROOK
+                // case 5:
+                //     if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2) continue;
+                //     current->moveCount++;
+                //     current->lastTurnMoved=chess.turnCount;
+                //     *target = BoardPiece(0, 0);
+                //     std::swap(*current, *target);
+                // break;
+                // PAWN
                 case 6:
                     //check if moving backwards
                     if ((targetedPos.x-currentPos.x>0&&chess.toMove)||(targetedPos.x-currentPos.x<0&&!chess.toMove)) continue;
@@ -174,8 +195,6 @@ bool parseMoves() {
                         //moving too far left and right
                         if (abs(targetedPos.y-currentPos.y) > 1) continue; 
                         int dy = targetedPos.y-currentPos.y;
-
-                        std::cout << currentPos << chess.board[currentPos.x][currentPos.y+dy] << chess.turnCount << std::endl;
                         //en passant checks if there is a pawn next to us, if it has only moved once, and if the current position is in the 5th or 6th row, also if it has moved in the last turn
                         if (chess.board[currentPos.x][currentPos.y+dy].type==6 && chess.board[currentPos.x][currentPos.y+dy].moveCount==1 && (currentPos.x == 3 || currentPos.x == 4) && chess.board[currentPos.x][currentPos.y+dy].lastTurnMoved+1==chess.turnCount) {
                             std::cout << "En Passant!" << std::endl;
@@ -196,6 +215,7 @@ bool parseMoves() {
                         }
                     }
                 break;
+            }
             break;
         } else continue;
     } while (!isValid);
