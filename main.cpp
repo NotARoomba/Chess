@@ -202,21 +202,115 @@ bool isKingInCheck(bool isWhite) {
     return false;
 }
 
-bool movePiece(BoardPiece *c, BoardPiece *t, bool enPassant = false, BoardPiece*ep=nullptr) {
-    BoardPiece tT = *t;
-    BoardPiece epT = *ep;
+bool movePiece(BoardPiece *c, BoardPiece *t, bool enPassant = false, BoardPiece*ep=nullptr, bool test=false) {
+    //if (test && isKingInCheck(chess.toMove)) return false;
+    BoardPiece *tT = t;
+    BoardPiece *epT = ep;
     if (enPassant) *ep = BoardPiece(0, 0);
     *t = BoardPiece(0, 0);
     std::swap(*c, *t);
     if (isKingInCheck(chess.toMove)) {
         std::swap(*c, *t);
-        *t = tT;
-        if (enPassant) *ep = epT;
+        t = tT;
+        if (enPassant) ep = epT;
         return false;
+    }
+    if (test) {
+        std::swap(*c, *t);
+        t = tT;
+        if (enPassant) ep = epT;
+        return true;
     }
     t->moveCount++;
     t->lastTurnMoved=chess.turnCount;
     return true;
+}
+vec2<bool> isValidMove(vec2<int> currentPos, vec2<int> targetedPos) {
+    BoardPiece* current = &chess.board[currentPos.x][currentPos.y];
+    BoardPiece* target = &chess.board[targetedPos.x][targetedPos.y];
+
+    if (current->type != 0 && chess.toMove == current->color && currentPos != targetedPos && currentPos.x < 8 && currentPos.x > -1 && currentPos.y < 8 && currentPos.y > -1 && targetedPos.x < 8 && targetedPos.x > -1 && targetedPos.y < 8 && targetedPos.y > -1) {
+        //TODO FOR ALL TYPES: promotion with select screen, checkmate and stalemate detection
+        switch (current->type) {
+            // KING
+            case 1: {
+                // King can only move one square at a time so yea
+                if (abs(targetedPos.x-currentPos.x) > 1 || abs(targetedPos.y-currentPos.y) > 1) return {false, false};
+                if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                    return {true, false};
+                }
+                return {false, false};
+            break;
+            }
+            // QUEEN
+            case 2: {
+                int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
+                int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
+                if (abs(dx)+abs(dy)!=1 && abs(targetedPos.y-currentPos.y)/abs(targetedPos.x-currentPos.x)!=1) return {false, false};
+                if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                    return {true, false};
+                }
+                return {false, false};
+            break;
+            }
+            // BISHOP
+            case 3: {
+                int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
+                int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
+                if (abs(targetedPos.y-currentPos.y) == 0 || abs(targetedPos.x-currentPos.x)==0) return {false, false};
+                if (abs(targetedPos.y-currentPos.y)/abs(targetedPos.x-currentPos.x)!=1) return {false, false};
+                if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                    return {true, false};
+                }
+                return {false, false};
+            break;
+            }
+            // KNIGHT
+            case 4: {
+                if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2 || (target->color==chess.toMove && target->type!=0)) return {false, false};
+                return {true, false};
+            }
+            // ROOK
+            case 5: {
+                int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
+                int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
+                if (abs(dx)+abs(dy)==2) return {false, false};
+                if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
+                  return {true, false};
+                }
+                return {false, false};
+            break;
+            }
+            // PAWN
+            case 6: {
+                //check if moving backwards
+                if ((targetedPos.x-currentPos.x>0&&chess.toMove)||(targetedPos.x-currentPos.x<0&&!chess.toMove)) return {false, false};
+                //checks if x(y) movement is equal to one or 2 if hasnt moved
+                int movement = abs(targetedPos.x-currentPos.x);
+                if (movement > 2||(current->moveCount!=0&&movement==2)) return {false, false};
+                //non en passant/capture check
+                if (targetedPos.y == currentPos.y) {
+                    if (target->type != 0 || itemsInPath(currentPos, targetedPos)) return {false, false};
+                    return {true, false};
+                //en passant/capture code
+                } else {
+                    //moving too far left and right
+                    if (abs(targetedPos.y-currentPos.y) > 1) return {false, false}; 
+                    int dy = targetedPos.y-currentPos.y;
+                    //en passant checks if there is a pawn next to us, if it has only moved once, and if the current position is in the 5th or 6th row, also if it has moved in the last turn, adn also if it is a different color
+                    if (chess.board[currentPos.x][currentPos.y+dy].type==6 && chess.board[currentPos.x][currentPos.y+dy].moveCount==1 && (currentPos.x == 3 || currentPos.x == 4) && chess.board[currentPos.x][currentPos.y+dy].lastTurnMoved+1==chess.turnCount && chess.board[currentPos.x][currentPos.y+dy].color != chess.toMove && target->type==0) {
+                        return {true, true};
+                    }
+                    if (target->type !=0 && target->color != chess.toMove) {
+                        return {true, false};
+                    }
+                    return {false, false};
+                }
+            break;
+            }
+        }
+        return {true, false};
+    } else return {false, false};
 }
 
 bool hasValidMoves(bool isWhite) {
@@ -224,12 +318,21 @@ bool hasValidMoves(bool isWhite) {
         for (int j = 0; j < 8; j++) {
             if (chess.board[i][j].type != 0 && chess.board[i][j].color == isWhite) {
                 //loop through all the possible pieces and all the possible moves on the board to see if there is a valid move that does not put the king in check
+                for (int k = 0; k < 8; k++) {
+                    for (int l = 0; l < 8; l++) {
+                        vec2<bool> v = isValidMove({i, j}, {k, l});
+                        if (v.x) {
+                            if (movePiece(&chess.board[i][j], &chess.board[k][l], v.y, &chess.board[i][j+(l-j)]), true) return true;
+                        }
+                    }
+                }
             }
         }
     }
+    return false;
 }
 
-bool parseMoves() {
+void parseMoves() {
     std::string move;
     bool isValid = false;
     do {
@@ -245,102 +348,31 @@ bool parseMoves() {
         if (move.at(2) != '-' || move.size() != 5) continue;
         vec2<int> currentPos = {abs(atoi(&move.at(1))-8), int(move.at(0))-65 };
         vec2<int> targetedPos = {abs(atoi(&move.at(4))-8), int(move.at(3))-65 };
-        BoardPiece* current = &chess.board[currentPos.x][currentPos.y];
-        BoardPiece* target = &chess.board[targetedPos.x][targetedPos.y];
-
-        std::cout << currentPos << targetedPos << chess.turnCount << *current  << *target << chess.toMove << std::endl;
-        //checks if there is a piece, if it is the current turn for that piece, if the coorinates arent the same, if the coordinates are in the bounds
-        if (current->type != 0 && chess.toMove == current->color && currentPos != targetedPos && currentPos.x < 8 && currentPos.x > -1 && currentPos.y < 8 && currentPos.y > -1 && targetedPos.x < 8 && targetedPos.x > -1 && targetedPos.y < 8 && targetedPos.y > -1) {
-            //TODO FOR ALL TYPES: promotion with select screen, checkmate and stalemate detection
-            switch (current->type) {
-                // KING
-                case 1: {
-                    // King can only move one square at a time so yea
-                    if (abs(targetedPos.x-currentPos.x) > 1 || abs(targetedPos.y-currentPos.y) > 1) continue;
-                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
-                        if (movePiece(current, target)) break;
-                    }
-                    continue;
-                break;
-                }
-                // QUEEN
-                case 2: {
-                    int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
-                    int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
-                    if (abs(dx)+abs(dy)!=1 && abs(targetedPos.y-currentPos.y)/abs(targetedPos.x-currentPos.x)!=1) continue;
-                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
-                        if (movePiece(current, target)) break;
-                    }
-                    continue;
-                break;
-                }
-                // BISHOP
-                case 3: {
-                    int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
-                    int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
-                    if (abs(targetedPos.y-currentPos.y) == 0 || abs(targetedPos.x-currentPos.x)==0) continue;
-                    if (abs(targetedPos.y-currentPos.y)/abs(targetedPos.x-currentPos.x)!=1) continue;
-                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
-                        if (movePiece(current, target)) break;
-                    }
-                    continue;
-                break;
-                }
-                // KNIGHT
-                case 4: {
-                    if (abs(targetedPos.x-currentPos.x)*abs(targetedPos.y-currentPos.y)!=2 || (target->color==chess.toMove && target->type!=0)) continue;
-                    if (movePiece(current, target)) break;
-                }
-                // ROOK
-                case 5: {
-                    int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
-                    int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
-                    if (abs(dx)+abs(dy)==2) continue;
-                    if (!itemsInPath(currentPos, targetedPos) && (target->color!=chess.toMove || target->type==0)) {
-                        if (movePiece(current, target)) break;
-                    }
-                    continue;
-                break;
-                }
-                // PAWN
-                case 6: {
-                    //check if moving backwards
-                    if ((targetedPos.x-currentPos.x>0&&chess.toMove)||(targetedPos.x-currentPos.x<0&&!chess.toMove)) continue;
-                    //checks if x(y) movement is equal to one or 2 if hasnt moved
-                    int movement = abs(targetedPos.x-currentPos.x);
-                    if (movement > 2||(current->moveCount!=0&&movement==2)) continue;
-                    //non en passant/capture check
-                    if (targetedPos.y == currentPos.y) {
-                        if (target->type != 0 || itemsInPath(currentPos, targetedPos)) continue;
-                        if (movePiece(current, target)) break;
-                    //en passant/capture code
-                    } else {
-                        //moving too far left and right
-                        if (abs(targetedPos.y-currentPos.y) > 1) continue; 
-                        int dy = targetedPos.y-currentPos.y;
-                        //en passant checks if there is a pawn next to us, if it has only moved once, and if the current position is in the 5th or 6th row, also if it has moved in the last turn, adn also if it is a different color
-                        if (chess.board[currentPos.x][currentPos.y+dy].type==6 && chess.board[currentPos.x][currentPos.y+dy].moveCount==1 && (currentPos.x == 3 || currentPos.x == 4) && chess.board[currentPos.x][currentPos.y+dy].lastTurnMoved+1==chess.turnCount && chess.board[currentPos.x][currentPos.y+dy].color != chess.toMove && target->type==0) {
-                            if (movePiece(current, target, true, &chess.board[currentPos.x][currentPos.y+dy])) break;
-                        }
-                        if (target->type !=0 && target->color != chess.toMove) {
-                            if (movePiece(current, target)) break;
-                        }
-                        continue;
-                    }
-                break;
-                }
-            }
-            break;
-        } else continue;
+        vec2<bool> r = isValidMove(currentPos, targetedPos);
+        std::cout << r << std::endl;
+        if (r.x) {
+            isValid = movePiece(&chess.board[currentPos.x][currentPos.y], &chess.board[targetedPos.x][targetedPos.y], r.y, &chess.board[currentPos.x][currentPos.y+(targetedPos.y-currentPos.y)]);
+        }
     } while (!isValid);
-
-    if (isKingInCheck(!chess.toMove)) {
+    std::cout << isKingInCheck(chess.toMove) << " " << !hasValidMoves(chess.toMove) << " TOMove: " << chess.toMove << std::endl;
+    if (isKingInCheck(chess.toMove)) {
         chess.inCheck = true;
         chess.check = !chess.toMove;
     } else {
         chess.inCheck = false;
     }
-    return true;
+
+    if (!hasValidMoves(chess.toMove)) {
+        printBoard();
+        if (chess.inCheck) {
+            std::cout << (chess.toMove==1?"White":"Black") << " won the game!" << std::endl; 
+        } else {
+            std::cout << "Stalemate! Nobody won!" << std::endl;
+        }
+        chess.quit=true;
+        return;
+    }
+    return;
 }
 
 void initBoard(bool isWhite) {
