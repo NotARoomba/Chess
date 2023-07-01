@@ -1,19 +1,13 @@
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/detail/find_format_store.hpp>
-#include <boost/function/function_base.hpp>
-#include <cstdio>
-#include <cstdlib>
-#include <ios>
+#include <bits/types/time_t.h>
+#include <fstream>
 #include <iostream>
-#include <boost/algorithm/string.hpp>
 #include <istream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 #include <algorithm> 
-#include <locale>
-#include <codecvt>
-#include <map>
+#include <chrono>
+#include <ctime>
+#include <sstream>
 
 template <typename T>
 struct vec2 {
@@ -54,6 +48,7 @@ std::ostream& operator<< (std::ostream &o, const BoardPiece& p) {
     int turnCount = 0;
     bool inCheck = false;
     int check = 0;
+    std::vector<std::string> moveList;
     std::vector<std::vector<BoardPiece>> board;
  } chess;
 
@@ -216,7 +211,6 @@ bool movePiece(BoardPiece *c, BoardPiece *t, bool color, bool enPassant = false,
     if (enPassant) *ep = BoardPiece(0, 0);
     *t = BoardPiece(0, 0);
     std::swap(*c, *t);
-    printBoard();
     if (isKingInCheck(color)) {
         std::swap(*c, *t);
         *t = tT;
@@ -283,7 +277,8 @@ vec2<bool> isValidMove(vec2<int> currentPos, vec2<int> targetedPos, bool color) 
                 int dx = (targetedPos.x == currentPos.x ? 0 : targetedPos.x < currentPos.x ? -1 : 1);
                 int dy = (targetedPos.y == currentPos.y ? 0 : targetedPos.y < currentPos.y ? -1 : 1);
                 if (abs(dx)+abs(dy)==2) return {false, false};
-                if (!itemsInPath(currentPos, targetedPos) && (target->color!=color || target->type==0)) {
+                //strange needed to be normal
+                if (itemsInPath(currentPos, targetedPos) && (target->color!=color || target->type==0)) {
                   return {true, false};
                 }
                 return {false, false};
@@ -336,7 +331,6 @@ bool hasValidMoves(bool color) {
                         vec2<bool> v = isValidMove({i, j}, {k, l}, color);
                         if (v.x) {
                             //tests if the current move can keep the color's king safe
-                            //std::cout << std::endl << "MOVEPIECE: " << movePiece(&chess.board[i][j], &chess.board[k][l], color, v.y, &chess.board[i][j+(l-j)], true) << " PIECE THAT CAN BE MOVED" << chess.board[i][j] << std::endl;
                             if (movePiece(&chess.board[i][j], &chess.board[k][l], color, true, &chess.board[i][j+(l-j)], true)) return true;
                         }
                     }
@@ -347,29 +341,34 @@ bool hasValidMoves(bool color) {
     return false;
 }
 
-void parseMoves() {
+void parseMoves(std::string m = "") {
     std::string move;
     bool isValid = false;
     do {
-        std::cout << "Enter a valid move (examples of notation: E4-E5 or G3-F5): ";
-        //std::cin.ignore();
-        std::getline(std::cin >> std::ws, move);
-        for (char & c: move) c = toupper(c);
+        if (m=="") {
+            if (chess.inCheck && chess.check == chess.color) std::cout << "You are in check!" << std::endl;
+            std::cout << "Enter a valid move (examples of notation: E4-E5 or g3-f5): ";
+            //std::cin.ignore();
+            std::getline(std::cin >> std::ws, move);
+            for (char & c: move) c = toupper(c);
+        } else {
+            move=m;
+        }
         //
         // IMPORTANT X AND Y ARE SWAPPED DUE TO HOW THE ROWS WORK!!!!
         // DOWN = MORE X
         // RIGHT = MORE Y
         //
+        if (move.size() != 5) continue;
         if (move.at(2) != '-' || move.size() != 5) continue;
+        chess.moveList.push_back(move);
         vec2<int> currentPos = {abs(atoi(&move.at(1))-8), int(move.at(0))-65 };
         vec2<int> targetedPos = {abs(atoi(&move.at(4))-8), int(move.at(3))-65 };
         vec2<bool> r = isValidMove(currentPos, targetedPos, chess.color);
-        std::cout << r << std::endl;
         if (r.x) {
             isValid = movePiece(&chess.board[currentPos.x][currentPos.y], &chess.board[targetedPos.x][targetedPos.y], chess.color, r.y, &chess.board[currentPos.x][currentPos.y+(targetedPos.y-currentPos.y)]);
         }
     } while (!isValid);
-    std::cout << "CHECK: " <<  isKingInCheck(!chess.color) << " MOVES: " << hasValidMoves(!chess.color) << " color: " << chess.color << std::endl;
     // first checks if the opposite king is in check then checks if the other side has valid moves
     // 
     if (isKingInCheck(!chess.color)) {
@@ -438,7 +437,9 @@ int main() {
     printBoard();
     while (!chess.quit) {
         if (chess.inGame) std::cout << "It is " << (chess.color?"White's":"Black's") << " turn!" << std::endl;
+        if (chess.inCheck && chess.check == chess.color) std::cout << "You are in check!" << std::endl;
         char r = getInput(std::string("What would you like to do? ") + (!chess.inGame?"(N)ew Game":"(F)orfeit Game") + " (M)ove (U)ndo (S)ave (L)oad (Q)uit", {'N', 'F', 'M', 'U', 'S', 'L', 'Q'});
+        r = toupper(r);
         if (r == 'N') {
             if (chess.inGame) {
                 std::cout << "You are already in a game! Enter F to quit!" << std::endl;
@@ -446,7 +447,7 @@ int main() {
             }
             else {
                 char c = getInput("Do you want to be (W)hite or (B)lack?", {'W', 'B'});
-                //clearScreen();
+                clearScreen();
                 initBoard((c == 'W'));
                 printBoard();
                 chess.inGame = true;
@@ -457,8 +458,9 @@ int main() {
                 continue;
             }
             else {
+                std::cout << (chess.color==1?"White":"Black") << " has forfeited the game!" << std::endl;
+                std::cout << (chess.color!=1?"White":"Black") << " won the game!" << std::endl; 
                 chess.inGame = false;
-                //stop a chess game
             }
         } else if (r == 'M') {
             if (!chess.inGame) {
@@ -466,31 +468,59 @@ int main() {
                 continue;
             } else {
                 parseMoves();
-                //clearScreen();
+                clearScreen();
                 chess.color = !chess.color;
                 chess.turnCount++;
                 printBoard();
-            }
-        } else if (r == 'U') {
-            if (!chess.inGame) {
-                std::cout << "You are not in a game! Enter N to start a new one!" << std::endl;
-                continue;
-            } else {
-                //undo last move logic
             }
         } else if (r == 'S') {
             if (!chess.inGame) {
                 std::cout << "You are not in a game! Enter N to start a new one!" << std::endl;
                 continue;
             } else {
-                //save to file or copy to clipboard
+                std::cout << "The file will be saved in this directory.\nEnter a name for the file: ";
+                //std::cin.ignore();
+                std::string fn;
+                std::getline(std::cin >> std::ws, fn);
+                char t[20];
+                time_t now = time(NULL);
+                strftime(t, 20, "%Y-%m-%d %H:%M:%S", localtime(&now));
+                if (fn.size() <= 0) fn = t;
+                std::ofstream f;
+                f.open(fn + ".txt");
+                f << t << "\n";
+                for (int i = 0; i < chess.moveList.size(); i++) {
+                    f << chess.moveList[i] << "\n";
+                }
+                f.close();
+                std::cout << "Saved current game to '" << fn << ".txt' successfully!" << std::endl;
             }
         } else if (r == 'L') {
             if (chess.inGame) {
                 std::cout << "You are already in a game! Enter Q to quit!" << std::endl;
                 continue;
             } else {
-                //load game from file or pgn??
+                 std::cout << "The game will be loaded from a file.\nEnter the path of the file: ";
+                //std::cin.ignore();
+                std::string fn, g;
+                std::getline(std::cin >> std::ws, fn);
+                std::ifstream f;
+                f.open(fn, f.in);
+                std::ostringstream t;
+                if (!f.rdbuf()->is_open()) {
+                    std::cout << "The file does not exist!" << std::endl;
+                }
+                t << f.rdbuf();
+                g = t.str();
+                size_t p = 1;
+                std::string tk;
+                std::vector<std::string> mv;
+                while ((p = g.find("\n")) != std::string::npos) {
+                    mv.push_back(g.substr(0, p));
+                    g.erase(0, p + std::string("\n").length());
+                }
+                mv.erase(mv.begin());
+                for (std::string s : mv) parseMoves(s);
             }
         } else break;
     };
