@@ -1,4 +1,5 @@
 #include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/detail/find_format_store.hpp>
 #include <boost/function/function_base.hpp>
 #include <cstdio>
 #include <cstdlib>
@@ -201,15 +202,19 @@ bool isKingInCheck(bool isWhite) {
     }
     return false;
 }
-
+//generates temp variables from the input pieces
+//sets the target board piece to a blank and then swaps the piece moving it onto the square
+//then checks if the king is in check from that move and if so it reverses the swap and returns false
+//if the current turn's king is not in check and it is a test for the hasValidMoves function it reverses the values anyways and returns true as to not edit the boardpieces data
 bool movePiece(BoardPiece *c, BoardPiece *t, bool enPassant = false, BoardPiece*ep=nullptr, bool test=false) {
+    std::cout << "CHECK2: " << (test?isKingInCheck(!chess.toMove):isKingInCheck(chess.toMove)) << " " << test << std::endl;
     //if (test && isKingInCheck(chess.toMove)) return false;
     BoardPiece *tT = t;
     BoardPiece *epT = ep;
     if (enPassant) *ep = BoardPiece(0, 0);
     *t = BoardPiece(0, 0);
     std::swap(*c, *t);
-    if (isKingInCheck(chess.toMove)) {
+    if (test?isKingInCheck(!chess.toMove):isKingInCheck(chess.toMove)) {
         std::swap(*c, *t);
         t = tT;
         if (enPassant) ep = epT;
@@ -312,17 +317,19 @@ vec2<bool> isValidMove(vec2<int> currentPos, vec2<int> targetedPos) {
         return {true, false};
     } else return {false, false};
 }
+// loop through all the possible pieces and all the possible moves on the board to see if there is a valid move that does not put the king in check
+// calls the movepiece on test mode which doesnt modify any of the values
 
 bool hasValidMoves(bool isWhite) {
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             if (chess.board[i][j].type != 0 && chess.board[i][j].color == isWhite) {
-                //loop through all the possible pieces and all the possible moves on the board to see if there is a valid move that does not put the king in check
+                
                 for (int k = 0; k < 8; k++) {
                     for (int l = 0; l < 8; l++) {
                         vec2<bool> v = isValidMove({i, j}, {k, l});
                         if (v.x) {
-                            if (movePiece(&chess.board[i][j], &chess.board[k][l], v.y, &chess.board[i][j+(l-j)]), true) return true;
+                            if (movePiece(&chess.board[i][j], &chess.board[k][l], v.y, &chess.board[i][j+(l-j)], true)) return true;
                         }
                     }
                 }
@@ -354,15 +361,17 @@ void parseMoves() {
             isValid = movePiece(&chess.board[currentPos.x][currentPos.y], &chess.board[targetedPos.x][targetedPos.y], r.y, &chess.board[currentPos.x][currentPos.y+(targetedPos.y-currentPos.y)]);
         }
     } while (!isValid);
-    std::cout << isKingInCheck(chess.toMove) << " " << !hasValidMoves(chess.toMove) << " TOMove: " << chess.toMove << std::endl;
-    if (isKingInCheck(chess.toMove)) {
+    std::cout << "CHECK: " <<  isKingInCheck(!chess.toMove) << " MOVES: " << hasValidMoves(!chess.toMove) << " TOMove: " << !chess.toMove << std::endl;
+    // first checks if the opposite king is in check then checks if the other side has valid moves
+    // 
+    if (isKingInCheck(!chess.toMove)) {
         chess.inCheck = true;
         chess.check = !chess.toMove;
     } else {
         chess.inCheck = false;
     }
 
-    if (!hasValidMoves(chess.toMove)) {
+    if (hasValidMoves(!chess.toMove)) {
         printBoard();
         if (chess.inCheck) {
             std::cout << (chess.toMove==1?"White":"Black") << " won the game!" << std::endl; 
