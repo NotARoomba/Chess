@@ -354,6 +354,7 @@ void parseMoves(std::string m = "") {
         } else {
             move=m;
         }
+        std::cout << move << std::endl;
         //
         // IMPORTANT X AND Y ARE SWAPPED DUE TO HOW THE ROWS WORK!!!!
         // DOWN = MORE X
@@ -361,6 +362,7 @@ void parseMoves(std::string m = "") {
         //
         if (move.size() != 5) continue;
         if (move.at(2) != '-' || move.size() != 5) continue;
+        std::cout << "1" << std::endl;
         chess.moveList.push_back(move);
         vec2<int> currentPos = {abs(atoi(&move.at(1))-8), int(move.at(0))-65 };
         vec2<int> targetedPos = {abs(atoi(&move.at(4))-8), int(move.at(3))-65 };
@@ -489,6 +491,7 @@ int main() {
                 std::ofstream f;
                 f.open(fn + ".txt");
                 f << t << "\n";
+                f << chess.isWhite << "\n";
                 for (int i = 0; i < chess.moveList.size(); i++) {
                     f << chess.moveList[i] << "\n";
                 }
@@ -512,7 +515,7 @@ int main() {
                 }
                 t << f.rdbuf();
                 g = t.str();
-                size_t p = 1;
+                size_t p = 0;
                 std::string tk;
                 std::vector<std::string> mv;
                 while ((p = g.find("\n")) != std::string::npos) {
@@ -520,7 +523,18 @@ int main() {
                     g.erase(0, p + std::string("\n").length());
                 }
                 mv.erase(mv.begin());
-                for (std::string s : mv) parseMoves(s);
+                chess.isWhite = mv[0] == "1";
+                mv.erase(mv.begin());
+                std::cout << "Loading the game..." << std::endl;
+                initBoard(chess.isWhite);
+                chess.inGame=true;
+                for (std::string s : mv) { 
+                    parseMoves(s);
+                    clearScreen();
+                    chess.color = !chess.color;
+                    chess.turnCount++;
+                    printBoard();
+                }
             }
         } else break;
     };
