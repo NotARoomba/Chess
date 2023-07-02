@@ -48,6 +48,7 @@ std::ostream& operator<< (std::ostream &o, const BoardPiece& p) {
     int turnCount = 0;
     bool inCheck = false;
     int check = 0;
+    char promote = ' ';
     std::vector<std::string> moveList;
     std::vector<std::vector<BoardPiece>> board;
  } chess;
@@ -109,54 +110,68 @@ char getInput(std::string question, std::vector<char> valid) {
         std::cout << question << std::endl;
         std::cout << "Type a letter: ";
         std::cin >> c;
+        c = toupper(c);
     } while (std::find(valid.cbegin(), valid.cend(), c) == valid.cend());
     return c;
 }
 
 bool itemsInPath(vec2<int> c, vec2<int> d) {
-    if (c.x==d.x) {
-        for (int i = c.y+1; i < abs(c.y-d.y);i++) {
-            if (chess.board[c.x][i].type != 0) return true;
+    if (c.x == d.x) {
+        for (int i = c.y + 1; i < d.y; i++) {
+            if (chess.board[c.x][i].type != 0) {
+                return true;
+            }
         }
-    //in the same path
-    } else if (c.y==d.y) {
-        for (int i = c.x+1; i < abs(c.x-d.x);i++) {
-            if (chess.board[i][c.y].type != 0) return true;
+    } else if (c.y == d.y) {
+        for (int i = c.x + 1; i < d.x; i++) {
+            if (chess.board[i][c.y].type != 0) {
+                return true;
+            }
         }
-    //fucking diagonals
     } else {
         int dx = d.x < c.x ? -1 : 1;
         int dy = d.y < c.y ? -1 : 1;
-        for (int i = 1; i < abs(d.x-c.x);i++) {
-            if (chess.board[c.x + (i*dx)][c.y + (i*dy)].type != 0) return true;
+        for (int i = 1; i < abs(d.x - c.x); i++) {
+            if (chess.board[c.x + (i * dx)][c.y + (i * dy)].type != 0) {
+                return true;
+            }
         }
     }
     return false;
 }
 BoardPiece itemInDirection(vec2<int> c, vec2<int> d) {
-    // checks diagonals
-    if (abs(d.x)+abs(d.y)==2)  {
-        for (int i = 1; i < (d.x==-1?std::min(c.x, c.y):std::min(7-c.x, 7-c.y));i++) {
-            chess.board[c.x + (i*d.x)][c.y + (i*d.y)].pos = {c.x + (i*d.x), c.y + (i*d.y)};
-            if (chess.board[c.x + (i*d.x)][c.y + (i*d.y)].type != 0) return chess.board[c.x + (i*d.x)][c.y + (i*d.y)];
+    if (abs(d.x) + abs(d.y) == 2) {
+        for (int i = 1; i < 8; i++) {
+            int newX = c.x + (i * d.x);
+            int newY = c.y + (i * d.y);
+            if (newX < 0 || newX >= 8 || newY < 0 || newY >= 8) break;
+            if (chess.board[newX][newY].type != 0) return chess.board[newX][newY];
         }
-    //checks straight lines
-    }  else if (d.x==0) {
-        for (int i = c.y+d.y; (d.y==-1?i>=0:i<8);(d.y==-1?i--:i++)) {
-            chess.board[c.x][i].pos = {c.x, i};
-            if (chess.board[c.x][i].type != 0) return chess.board[c.x][i];
+    } else if (d.x == 0) {
+        for (int i = c.y + d.y; (d.y == -1 ? i >= 0 : i < 8); (d.y == -1 ? i-- : i++)) {
+            if (c.x < 0 || c.x >= 8 || i < 0 || i >= 8) break;
+            if (chess.board[c.x][i].type != 0) {
+                return chess.board[c.x][i];
+            }
         }
-    } else if(d.y==0) {
-        for (int i = c.x+d.x; (d.x==-1?i>=0:i<8);(d.x==-1?i--:i++)) {
-            chess.board[i][c.y].pos = {i, c.y};
-            if (chess.board[i][c.y].type != 0) return chess.board[i][c.y];
+    } else if (d.y == 0) {
+        for (int i = c.x + d.x; (d.x == -1 ? i >= 0 : i < 8); (d.x == -1 ? i-- : i++)) {
+            if (i < 0 || i >= 8 || c.y < 0 || c.y >= 8) break; 
+            if (chess.board[i][c.y].type != 0) {
+                return chess.board[i][c.y];
+            }
         }
-    //check for L
-    } else {
-
     }
     return BoardPiece(0, 0);
 }
+void updatePos() {
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            chess.board[i][j].pos = {i, j};
+        }
+    }
+}
+
 bool isKingInCheck(bool color) {
     vec2<int> kingPos;
     std::vector<vec2<int>> knt;
@@ -173,6 +188,7 @@ bool isKingInCheck(bool color) {
         for (int j : {1, 0, -1}) {
             if (abs(i)+abs(j)!=0) {
                 BoardPiece item = itemInDirection(kingPos, {i, j});
+                updatePos();
                 // KNIGHT
                 // checks L
                 for (vec2<int> k : knt) if (abs(k.x-kingPos.x)*abs(k.y-kingPos.y)==2) return true;
@@ -180,8 +196,8 @@ bool isKingInCheck(bool color) {
                     int dx = (item.pos.x == kingPos.x ? 0 : item.pos.x < kingPos.x ? -1 : 1);
                     int dy = (item.pos.y == kingPos.y ? 0 : item.pos.y < kingPos.y ? -1 : 1);
                     // QUEEN CHECK
-                    // checks if it is horizontal/vertical or in a diagonal
-                    if (item.type==2 && !(abs(dx)+abs(dy)!=1 && abs(item.pos.y-kingPos.y)/abs(item.pos.x-kingPos.x)!=1)) return true;
+                    // if detected then yea
+                    if (item.type==2) return true;
                     // BISHOP
                     // checks if diagonal
                     if (item.type==3 && !(abs(item.pos.y-kingPos.y)/abs(item.pos.x-kingPos.x)!=1)) return true;
@@ -197,34 +213,47 @@ bool isKingInCheck(bool color) {
     }
     return false;
 }
-//generates temp variables from the input pieces
-//sets the target board piece to a blank and then swaps the piece moving it onto the square
-//then checks if the king is in check from that move and if so it reverses the swap and returns false
-//if the current turn's king is not in check and it is a test for the hasValidMoves function it reverses the values anyways and returns true as to not edit the boardpieces data
-bool movePiece(BoardPiece *c, BoardPiece *t, bool color, bool enPassant = false, BoardPiece*ep=nullptr, bool test=false) {
-    //if (test && isKingInCheck(chess.color)) return false;
-    BoardPiece tT = *new BoardPiece(0, 0);
-    tT = *t;
-    BoardPiece epT = *new BoardPiece(0, 0);
-    epT = *ep;
-    std::vector<std::vector<BoardPiece>> bT = chess.board;
-    if (enPassant) *ep = BoardPiece(0, 0);
+
+bool movePiece(BoardPiece* c, BoardPiece* t, bool color, bool enPassant = false, BoardPiece* ep = nullptr, bool test = false) {
+    BoardPiece cT = *c;
+    BoardPiece tT = *t;
+    BoardPiece epT = BoardPiece(0, 0);
+
+    if (ep != nullptr) {
+        epT = *ep;
+        if (enPassant) *ep = BoardPiece(0, 0);
+    }
     *t = BoardPiece(0, 0);
     std::swap(*c, *t);
+
+    updatePos();
+
+    // Promotion code
+    if (t->type == 6 && t->lastTurnMoved != 0 && ((!t->color && t->pos.x == 7) || (t->color && t->pos.x == 0))) {
+        if (chess.promote == ' ' && !test) chess.promote = getInput("What would you like to promote to? (Q)ueen, (R)ook, (K)night, (B)ishop", {'Q', 'R', 'K', 'B'});
+        if (chess.promote == 'Q' || test) t->type = 2; // Queen
+        else if (chess.promote == 'R') t->type = 5; // Rook
+        else if (chess.promote == 'K')   t->type = 4; // Knight
+        else if (chess.promote == 'B')  t->type = 3; // Bishop
+    }
+
+    // Check for king in check after swapping positions
     if (isKingInCheck(color)) {
         std::swap(*c, *t);
         *t = tT;
-        if (enPassant) *ep = epT;
+        *c = cT;
+        if (enPassant && ep != nullptr) *ep = epT; 
         return false;
-    } else if(test) {
+    } else if (test) {
         std::swap(*c, *t);
         *t = tT;
-        if (enPassant) *ep = epT;
-        //chess.board = bT;
+        *c = cT;
+        if (enPassant && ep != nullptr)   *ep = epT; 
         return true;
     }
+    if (chess.promote != ' ') chess.moveList.push_back(std::string(&chess.promote));
     t->moveCount++;
-    t->lastTurnMoved=chess.turnCount;
+    t->lastTurnMoved = chess.turnCount;
     return true;
 }
 vec2<bool> isValidMove(vec2<int> currentPos, vec2<int> targetedPos, bool color) {
@@ -232,7 +261,6 @@ vec2<bool> isValidMove(vec2<int> currentPos, vec2<int> targetedPos, bool color) 
     BoardPiece* target = &chess.board[targetedPos.x][targetedPos.y];
 
     if (current->type != 0 && color == current->color && currentPos != targetedPos && currentPos.x < 8 && currentPos.x > -1 && currentPos.y < 8 && currentPos.y > -1 && targetedPos.x < 8 && targetedPos.x > -1 && targetedPos.y < 8 && targetedPos.y > -1) {
-        //TODO FOR ALL TYPES: promotion with select screen, checkmate and stalemate detection
         switch (current->type) {
             // KING
             case 1: {
@@ -324,14 +352,13 @@ bool hasValidMoves(bool color) {
         for (int j = 0; j < 8; j++) {
             if (chess.board[i][j].type != 0 && chess.board[i][j].color == color) {
                 //gets all the pieces of the color
-                std::cout << chess.board[i][j] << std::endl;
                 for (int k = 0; k < 8; k++) {
                     for (int l = 0; l < 8; l++) {
                         //problem with is valid move
                         vec2<bool> v = isValidMove({i, j}, {k, l}, color);
                         if (v.x) {
                             //tests if the current move can keep the color's king safe
-                            if (movePiece(&chess.board[i][j], &chess.board[k][l], color, true, &chess.board[i][j+(l-j)], true)) return true;
+                            if (movePiece(&chess.board[i][j], &chess.board[k][l], color, true, &chess.board[i][j+(l-j)], true)) {chess.promote = ' ';return true;}
                         }
                     }
                 }
@@ -354,7 +381,6 @@ void parseMoves(std::string m = "") {
         } else {
             move=m;
         }
-        std::cout << move << std::endl;
         //
         // IMPORTANT X AND Y ARE SWAPPED DUE TO HOW THE ROWS WORK!!!!
         // DOWN = MORE X
@@ -362,8 +388,6 @@ void parseMoves(std::string m = "") {
         //
         if (move.size() != 5) continue;
         if (move.at(2) != '-' || move.size() != 5) continue;
-        std::cout << "1" << std::endl;
-        chess.moveList.push_back(move);
         vec2<int> currentPos = {abs(atoi(&move.at(1))-8), int(move.at(0))-65 };
         vec2<int> targetedPos = {abs(atoi(&move.at(4))-8), int(move.at(3))-65 };
         vec2<bool> r = isValidMove(currentPos, targetedPos, chess.color);
@@ -373,6 +397,7 @@ void parseMoves(std::string m = "") {
     } while (!isValid);
     // first checks if the opposite king is in check then checks if the other side has valid moves
     // 
+    chess.moveList.push_back(move);
     if (isKingInCheck(!chess.color)) {
         chess.inCheck = true;
         chess.check = !chess.color;
@@ -441,7 +466,6 @@ int main() {
         if (chess.inGame) std::cout << "It is " << (chess.color?"White's":"Black's") << " turn!" << std::endl;
         if (chess.inCheck && chess.check == chess.color) std::cout << "You are in check!" << std::endl;
         char r = getInput(std::string("What would you like to do? ") + (!chess.inGame?"(N)ew Game":"(F)orfeit Game") + " (M)ove (U)ndo (S)ave (L)oad (Q)uit", {'N', 'F', 'M', 'U', 'S', 'L', 'Q'});
-        r = toupper(r);
         if (r == 'N') {
             if (chess.inGame) {
                 std::cout << "You are already in a game! Enter F to quit!" << std::endl;
@@ -493,6 +517,7 @@ int main() {
                 f << t << "\n";
                 f << chess.isWhite << "\n";
                 for (int i = 0; i < chess.moveList.size(); i++) {
+                    std::cout << chess.moveList[i] << std::endl;
                     f << chess.moveList[i] << "\n";
                 }
                 f.close();
@@ -512,6 +537,7 @@ int main() {
                 std::ostringstream t;
                 if (!f.rdbuf()->is_open()) {
                     std::cout << "The file does not exist!" << std::endl;
+                    continue;
                 }
                 t << f.rdbuf();
                 g = t.str();
@@ -529,6 +555,10 @@ int main() {
                 initBoard(chess.isWhite);
                 chess.inGame=true;
                 for (std::string s : mv) { 
+                    if (s.size() == 1) {
+                        chess.promote = *s.c_str();
+                        continue;
+                    };
                     parseMoves(s);
                     clearScreen();
                     chess.color = !chess.color;
