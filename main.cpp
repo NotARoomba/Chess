@@ -1,4 +1,3 @@
-#include <bits/types/time_t.h>
 #include <fstream>
 #include <iostream>
 #include <istream>
