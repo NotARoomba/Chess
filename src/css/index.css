@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --text: #F0EBD8;
+    --background: #0D1321;
+    --primary: #748CAB;
+    --secondary: #1D2D44;
+    --accent: #b12af6;
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    background-color: var(--background);
+    max-width: 75vw;
+    margin: auto;
+    justify-self: center;
+    height: 100%;
+}
