@@ -1,30 +1,63 @@
-import { useEffect, useState } from "react";
-import { BoardProps } from "../utils/Types";
+import {  ReactElement, useEffect, useState } from "react";
 import { Chess } from "chess.js";
-import Piece from "./Piece";
+import { Chessboard } from "react-chessboard";
 
-export default function RandomBoard({isRandom, fen}: BoardProps) {
-    console.log(isRandom)
-    // make a chess board using the fen
-    const [game, setGame] = useState<Chess>(new Chess());
+export default function RandomBoard() {
+    const [game, setGame] = useState(new Chess());
     const [count, setCount] = useState(0);
-    useEffect(() => {
-        if (!isRandom) game.load(fen);
-        else {
-            const interval = setInterval(() => setCount(count+1), 1500)
-            const moves = game.moves()
-            const move = moves[Math.floor(Math.random() * moves.length)]
-            game.move(move)
-            return () => clearInterval(interval)
-        }
-    }, [isRandom, fen, game, count])
-    return <div className="h-4/5 aspect-square mt-10">
-       {game.board().map((row, i) => {
-        return <div className="flex">{row.map((v, j) => {
-            return (<div key={i+j*2} className={'w-20 aspect-square ' + ((i+j)%2==0?'bg-text':'bg-primary')}>
-                <Piece piece={v?.type} color={v?.color} />
-            </div>)
-        })}</div>
-       })}
-    </div>
+
+    const pieces = [
+        "wP",
+        "wN",
+        "wB",
+        "wR",
+        "wQ",
+        "wK",
+        "bP",
+        "bN",
+        "bB",
+        "bR",
+        "bQ",
+        "bK",
+      ];
+      const customPieces = () => {
+        const returnPieces: {[key: string]: ({ squareWidth }: {squareWidth: string}) => ReactElement} = {};
+        pieces.map((p) => {
+          returnPieces[p] = ({ squareWidth }) => (
+            <div
+              style={{
+                width: squareWidth,
+                height: squareWidth,
+                backgroundImage: `url(/img/pieces/${p[1].toLowerCase()}-${p[0]}.svg)`,
+                backgroundSize: "100%",
+                // filter: p[0]=='b'?'invert(8%) sepia(0%) saturate(1364%) hue-rotate(142deg) brightness(100%) contrast(100%)':''
+              }}
+            />
+          );
+          return null;
+        });
+        return returnPieces;
+      };
+
+  useEffect(() => {
+    function makeAMove(move: string | {from: string, to: string, promotion: string}) {
+        const gameCopy: Chess = game;
+        const result = gameCopy.move(move);
+        setGame(gameCopy);
+        return result; // null if the move was illegal, the move object if the move was legal
+    }
+
+    function makeRandomMove() {
+        const possibleMoves = game.moves();
+        if (game.isGameOver() || game.isDraw() || possibleMoves.length === 0)
+            return; // exit if the game is over
+        const randomIndex = Math.floor(Math.random() * possibleMoves.length);
+        makeAMove(possibleMoves[randomIndex]);
+    }
+    const interval = setInterval(() => setCount(count+1), 1500)
+    makeRandomMove()
+    return () => clearInterval(interval)
+  }, [count, game])
+
+  return <Chessboard customPieces={customPieces()} customBoardStyle={{'borderRadius': '15px'}} customDarkSquareStyle={{'backgroundColor': '#253856'}} customLightSquareStyle={{'backgroundColor': '#314B72'}} position={game.fen()} isDraggablePiece={() => false} />;
 }

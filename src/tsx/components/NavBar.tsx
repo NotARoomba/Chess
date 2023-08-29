@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 
 export default function NavBar() {
     const location = useLocation();
-    console.log(location.pathname == '/play');
     return <div className="h-20 flex justify-between bg-background/80 text-text">
         <Link to='/' className="group align-left flex align-middle transition">
             <img src='/img/logo.png' className="h-14 m-2 rounded-xl" />

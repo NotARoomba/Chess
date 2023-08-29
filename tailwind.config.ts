@@ -13,7 +13,10 @@ export default {
         'primary': 'var(--primary)',
         'secondary': 'var(--secondary)',
         'accent': 'var(--accent)',
-      }
+      },
+      transitionProperty: {
+        'width': 'width'
+    },
     },
   },
   plugins: [import('tailwindcss-font-inter')],
