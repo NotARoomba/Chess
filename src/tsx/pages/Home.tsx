@@ -1,11 +1,13 @@
-import React from 'react'
-import RandomBoard from '../components/Board'
+import { useState } from 'react'
+import Board from '../components/Board'
+import { Chess } from 'chess.js';
 
 export default function Home() {
+  const [game, setGame] = useState(new Chess());
 
   return (
     <div className='flex justify-center mt-12'>
-      <RandomBoard />
+      <Board game={game} setGame={setGame} isRandom />
       <div className='font-inter text-text text-left flex flex-col align-middle'>
           <p className='m-16 mb-0 text-9xl font-bold'>Chess</p>
           <p className='text-xl m-5 ml-16'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Excepturi officia quis consequatur? Dolorum ea exercitationem alias. Libero officiis vero aspernatur, veritatis facere voluptatibus, culpa ut voluptates illo a dolorem repellendus.</p>

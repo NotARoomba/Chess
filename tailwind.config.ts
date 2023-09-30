@@ -8,11 +8,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        'text': 'var(--text)',
-        'background': 'var(--background)',
-        'primary': 'var(--primary)',
-        'secondary': 'var(--secondary)',
-        'accent': 'var(--accent)',
+        'text': '#F0EBD8',
+        'background': '#0D1321',
+        'primary': '#748CAB',
+        'secondary': '#1D2D44',
+        'accent': '#b12af6',
       },
       transitionProperty: {
         'width': 'width'
